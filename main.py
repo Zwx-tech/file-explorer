@@ -2,7 +2,7 @@ import os
 import shutil
 import tkinter as tk
 from tkinter import ttk
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox, simpledialog, scrolledtext
 
 class FileExplorer(tk.Tk):
     clipoboard_path: str
@@ -14,9 +14,9 @@ class FileExplorer(tk.Tk):
         self.geometry("500x400")
         
         # styling
-        self.style = ttk.Style(self)
-        self.tk.call('source', 'azure.tcl')
-        self.tk.call("set_theme", "dark")
+        # self.style = ttk.Style(self)
+        # self.tk.call('source', 'azure.tcl')
+        # self.tk.call("set_theme", "dark")
         
         # curent dirr
         self.current_directory = tk.StringVar()
@@ -75,7 +75,10 @@ class FileExplorer(tk.Tk):
         
         self.create = ttk.Button(self.file_buttons, text="New Folder", command=self.create_new_dir)
         self.create.pack(side=tk.RIGHT, padx=10)
-    
+
+        self.create_text_file_button = ttk.Button(self.file_buttons, text="New Text File", command=self.create_text_file)
+        self.create_text_file_button.pack(side=tk.RIGHT, padx=10)
+
     @property
     def selected_file(self) -> str:
         curItem = self.file_listbox.focus()
@@ -84,8 +87,11 @@ class FileExplorer(tk.Tk):
     def update_files(self):
         self.file_listbox.delete(*self.file_listbox.get_children())
         files = os.listdir(self.current_directory.get())
+
+        folder_image = tk.PhotoImage(file="icons/file.png") # not sure why is not working
+
         for file in files:
-            self.file_listbox.insert("", "end", text=file)
+            self.file_listbox.insert("", "end", text=file, image=folder_image)
             
     def open_file(self):
         if not self.selected_file: 
@@ -95,7 +101,11 @@ class FileExplorer(tk.Tk):
             self.current_directory.set(file_path)
             self.update_files()
         else:
-            messagebox.showinfo("Info", f"Selected file: {file_path}")
+            if self.selected_file.endswith('.txt'):
+                FileEditorDialog.open(self, file_path)
+                return
+            messagebox.showinfo(title='Cool dialog', message='Thats not .txt file')
+
 
     def copy(self):
         if not self.selected_file:
@@ -154,15 +164,13 @@ class FileExplorer(tk.Tk):
                 messagebox.showerror(title='Error', message=f'Error moving file: {str(e)}')
         else:
             messagebox.showerror(title='Invalid Operation', message='Invalid clipboard operation')
-
-
     
     def delete_file(self):
         if not self.selected_file: 
             return
         selected_file = self.selected_file
         file_path = os.path.join(self.current_directory.get(), selected_file)
-        if messagebox.askyesnocancel(title='Delete the file?', message='Are you sure that you want to delte this file?', type=messagebox.WARNING):
+        if messagebox.askyesnocancel(title='Delete the file?', message='Are you sure that you want to delte this file?'):
             try:
                 os.remove(file_path)
                 self.update_files()
@@ -208,6 +216,67 @@ class FileExplorer(tk.Tk):
                 except Exception as e:
                     messagebox.showerror("Error", f"Error creating folder: {str(e)}")
 
+    def create_text_file(self):
+        new_file_name = simpledialog.askstring("New Text File", "Enter the name of the new text file:")
+        
+        if not new_file_name:
+            return
+        # we need to make sure that file is textfile
+        if not new_file_name.endswith('.txt'):
+            new_file_name += '.txt'
+
+        new_file_path = os.path.join(self.current_directory.get(), new_file_name)
+        # check if file exists
+        if os.path.exists(new_file_path):
+            messagebox.showerror("Error", f"File '{new_file_name}' already exists")
+            return
+        # create file
+        try:
+            with open(new_file_path, 'w'):
+                pass
+            self.update_files()
+            messagebox.showinfo("Info", f"New text file '{new_file_name}' created successfully")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error creating text file: {str(e)}")
+            
+class FileEditorDialog:
+    def __init__(self, parent, file_path):
+        self.parent = parent
+        self.file_path = file_path
+        
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("File Editor")
+        self.dialog.geometry("600x500")
+        
+        self.text_editor = scrolledtext.ScrolledText(self.dialog, wrap=tk.WORD)
+        self.text_editor.pack(expand=True, fill="both")
+        
+        self.load_file()
+        
+        self.save_button = ttk.Button(self.dialog, text="Save", command=self.save_file)
+        self.save_button.pack(pady=5)
+        
+    def load_file(self):
+        try:
+            with open(self.file_path, "r") as file:
+                content = file.read()
+                self.text_editor.insert(tk.END, content)
+        except Exception as e:
+            messagebox.showerror("Error", f"Error loading file: {str(e)}")
+    
+    def save_file(self):
+        try:
+            with open(self.file_path, "w") as file:
+                content = self.text_editor.get("1.0", tk.END)
+                file.write(content)
+            messagebox.showinfo("Success", "File saved successfully")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error saving file: {str(e)}")
+
+    @staticmethod
+    def open(master, file_path):
+        dialog = FileEditorDialog(master, file_path)
+        master.wait_window(dialog.dialog)
 
 if __name__ == "__main__":
     app = FileExplorer()
