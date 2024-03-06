@@ -11,12 +11,12 @@ class FileExplorer(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("File Explorer")
-        self.geometry("500x400")
+        self.geometry("600x400")
         
         # styling
-        # self.style = ttk.Style(self)
-        # self.tk.call('source', 'azure.tcl')
-        # self.tk.call("set_theme", "dark")
+        self.style = ttk.Style(self)
+        self.tk.call('source', 'azure.tcl')
+        self.tk.call("set_theme", "dark")
         
         # curent dirr
         self.current_directory = tk.StringVar()
@@ -36,6 +36,7 @@ class FileExplorer(tk.Tk):
         self.files_wrapper.pack(fill='x', padx=10)
         self.scrollbar.pack(side="right", fill="y")
         self.file_listbox.pack(side="left", fill="both", expand=True)
+        self.file_listbox.bind("<Double-1>", lambda e: self.go_up())
 
         self.action_buttons = ttk.Frame(self)
         self.action_buttons.pack(pady=10)
@@ -67,11 +68,12 @@ class FileExplorer(tk.Tk):
         self.btn_refresh = ttk.Button(self.file_buttons, text="Refresh", command=self.update_files)
         self.btn_refresh.pack(side=tk.LEFT, padx=10)
         
-        self.btn_back = ttk.Button(self.file_buttons, text="Back", command=self.go_back)
-        self.btn_back.pack(side=tk.RIGHT, padx=10)
+        # self.btn_back = ttk.Button(self.file_buttons, text="Back", command=self.go_back)
+        # self.btn_back.pack(side=tk.RIGHT, padx=10)
         
-        self.btn_up = ttk.Button(self.file_buttons, text="Go", command=self.go_up)
-        self.btn_up.pack(side=tk.RIGHT, padx=10)
+        # nevermind we dont need it
+        # self.btn_up = ttk.Button(self.file_buttons, text="Go", command=self.go_up)
+        # self.btn_up.pack(side=tk.RIGHT, padx=10)
         
         self.create = ttk.Button(self.file_buttons, text="New Folder", command=self.create_new_dir)
         self.create.pack(side=tk.RIGHT, padx=10)
@@ -82,7 +84,10 @@ class FileExplorer(tk.Tk):
     @property
     def selected_file(self) -> str:
         curItem = self.file_listbox.focus()
-        return self.file_listbox.item(curItem)["text"]
+        text = self.file_listbox.item(curItem)["text"]
+        if text.strip() == '..':
+            return False
+        return text 
     
     def update_files(self):
         self.file_listbox.delete(*self.file_listbox.get_children())
@@ -90,6 +95,7 @@ class FileExplorer(tk.Tk):
 
         folder_image = tk.PhotoImage(file="icons/file.png") # not sure why is not working
 
+        self.file_listbox.insert("", "end", text='..', image=folder_image)
         for file in files:
             self.file_listbox.insert("", "end", text=file, image=folder_image)
             
@@ -128,7 +134,7 @@ class FileExplorer(tk.Tk):
         # check if route exists
         if not os.path.isdir(new_path): 
             return
-        destination_path = os.path.join(new_path, self.sel)
+        destination_path = os.path.join(new_path, self.selected_file)
         print(destination_path)
         # preform move
         try:
@@ -196,6 +202,12 @@ class FileExplorer(tk.Tk):
         self.update_files()
         
     def go_up(self):
+        curItem = self.file_listbox.focus()
+        text = self.file_listbox.item(curItem)["text"]
+        if text.strip() == '..':
+            self.go_back()
+            return
+        
         if os.path.isfile((new_dir := os.path.join(self.current_directory.get(), self.selected_file))):
             return
         self.current_directory.set(new_dir)
